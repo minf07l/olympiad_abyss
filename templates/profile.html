@@ -1,0 +1,7 @@
+{% extends 'base.html' %}{% block content %}<h2>Профиль {{ user.username }}</h2>
+<form method="post">{{ form.csrf_token }}
+<div class="mb-3">{{ form.avatar.label }}{{ form.avatar(class_='form-control') }}</div>
+<div class="mb-3">{{ form.bio.label }}{{ form.bio(class_='form-control') }}</div>
+{{ form.submit(class_='btn btn-primary') }}</form>
+<h3>Ваши сообщения</h3><ul>{% for m in messages %}<li>{{ m.created_at }} — {{ m.text }}</li>{% else %}<li>Нет сообщений</li>{% endfor %}</ul>
+{% endblock %}

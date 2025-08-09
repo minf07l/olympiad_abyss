@@ -1,0 +1,5 @@
+{% extends 'base.html' %}{% block content %}<h2>Вход</h2>
+<form method="post">{{ form.csrf_token }}
+<div class="mb-3">{{ form.username.label }}{{ form.username(class_='form-control') }}</div>
+<div class="mb-3">{{ form.password.label }}{{ form.password(class_='form-control') }}</div>
+{{ form.submit(class_='btn btn-primary') }}</form>{% endblock %}

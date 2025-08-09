@@ -1,0 +1,5 @@
+{% extends 'base.html' %}{% block content %}
+<div class="row"><div class="col-md-8"><h1>Добро пожаловать в Olimpiad Abyss</h1><p>Интерактивная площадка.</p>
+<h3>Опросы</h3><ul>{% for p in polls %}<li><a href="{{ url_for('poll_view', pid=p.id) }}">{{ p.question }}</a></li>{% else %}<li>Нет опросов</li>{% endfor %}</ul></div>
+<div class="col-md-4"><h4>Топ кликеров</h4><ol>{% for u in top_clickers %}<li>{{ u.avatar }} {{ u.username }} — {{ u.points }}</li>{% else %}<li>Нет игроков</li>{% endfor %}</ol></div></div>
+{% endblock %}

@@ -1,0 +1,11 @@
+{% extends 'base.html' %}{% block content %}<h2>Кликер</h2><p>Ваши очки: <span id="points">{{ user.points }}</span></p><button id="click" class="btn btn-success">Клик!</button>
+<script>
+document.getElementById('click').onclick = async ()=>{
+  const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+  try{
+    const res = await fetch('{{ url_for("clicker") }}',{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':token},body:JSON.stringify({delta:1})});
+    const js = await res.json();
+    document.getElementById('points').innerText = js.points;
+  }catch(e){ console.error(e) }
+};
+</script>{% endblock %}

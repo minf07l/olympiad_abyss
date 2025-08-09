@@ -1,0 +1,23 @@
+{% extends 'base.html' %}{% block content %}<h2>Чат</h2>
+<div id="messages" style="height:300px;overflow:auto;border:1px solid #ddd;padding:8px;background:#fff;"></div>
+<div class="input-group mt-2"><input id="msg" class="form-control" placeholder="Напишите сообщение..."><button id="send" class="btn btn-primary">Отправить</button></div>
+<script>
+const messagesEl = document.getElementById('messages');
+async function loadMessages(){
+  try{
+    const res = await fetch('{{ url_for("api_chat") }}');
+    const data = await res.json();
+    messagesEl.innerHTML = data.map(m=>`<div><strong>${m.username||'anon'}</strong>: ${m.text}</div>`).join('');
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }catch(e){ console.error(e) }
+}
+loadMessages(); setInterval(loadMessages,2000);
+document.getElementById('send').onclick = async ()=>{
+  const text = document.getElementById('msg').value.trim(); if(!text) return;
+  const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+  try{
+    await fetch('{{ url_for("api_chat") }}',{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':token},body:JSON.stringify({text})});
+    document.getElementById('msg').value=''; loadMessages();
+  }catch(e){ console.error(e) }
+};
+</script>{% endblock %}

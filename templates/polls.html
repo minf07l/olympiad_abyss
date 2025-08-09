@@ -1,0 +1,6 @@
+{% extends 'base.html' %}{% block content %}<h2>Опросы</h2>
+<form method="post">{{ form.csrf_token }}
+<div class="mb-3">{{ form.question.label }}{{ form.question(class_='form-control') }}</div>
+<div class="mb-3">{{ form.options.label }}{{ form.options(class_='form-control') }}</div>
+{{ form.submit(class_='btn btn-primary') }}</form>
+<ul>{% for p in polls %}<li><a href="{{ url_for('poll_view', pid=p.id) }}">{{ p.question }}</a></li>{% else %}<li>Нет опросов</li>{% endfor %}</ul>{% endblock %}

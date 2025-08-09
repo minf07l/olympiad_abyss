@@ -1,0 +1,9 @@
+{% extends 'base.html' %}{% block content %}<h2>Опрос: {{ poll.question }}</h2>
+<form method="post">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token_value }}">
+  {% for i in range(options|length) %}
+    <div class="form-check"><input class="form-check-input" type="radio" name="option" id="o{{ i }}" value="{{ i }}"><label class="form-check-label" for="o{{ i }}">{{ options[i] }} ({{ counts[i] }})</label></div>
+  {% endfor %}
+  <button class="btn btn-primary mt-2">Голосовать</button>
+</form>
+<p>Всего голосов: {{ votes }}</p>{% endblock %}

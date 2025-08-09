@@ -1,0 +1,17 @@
+{% extends 'base.html' %}{% block content %}<h2>Панель администратора</h2>
+<table class="table"><thead><tr><th>ID</th><th>Логин</th><th>Роль</th><th>Действия</th></tr></thead><tbody>
+{% for u in users %}
+<tr><td>{{ u.id }}</td><td>{{ u.username }}</td><td>{% if u.is_god %}god{% elif u.is_admin %}admin{% else %}user{% endif %}</td>
+<td>
+  <button class="btn btn-sm btn-danger" onclick="admDel({{ u.id }})">Удалить</button>
+  {% if user.is_god and not u.is_god %}
+    {% if not u.is_admin %}<button class="btn btn-sm btn-warning" onclick="admProm({{ u.id }})">Сделать админом</button>{% else %}<button class="btn btn-sm btn-secondary" onclick="admDem({{ u.id }})">Снять админа</button>{% endif %}
+  {% endif %}
+</td></tr>
+{% endfor %}
+</tbody></table>
+<script>
+async function admDel(id){ if(!confirm('Удалить пользователя?')) return; const token=document.querySelector('meta[name="csrf-token"]').getAttribute('content'); const res=await fetch('/admin/delete/'+id,{method:'POST',headers:{'X-CSRFToken':token}}); const js=await res.json(); if(js.ok) location.reload(); else alert(js.error||'Ошибка'); }
+async function admProm(id){ const token=document.querySelector('meta[name="csrf-token"]').getAttribute('content'); const res=await fetch('/admin/promote/'+id,{method:'POST',headers:{'X-CSRFToken':token}}); const js=await res.json(); if(js.ok) location.reload(); else alert(js.error||'Ошибка'); }
+async function admDem(id){ const token=document.querySelector('meta[name="csrf-token"]').getAttribute('content'); const res=await fetch('/admin/demote/'+id,{method:'POST',headers:{'X-CSRFToken':token}}); const js=await res.json(); if(js.ok) location.reload(); else alert(js.error||'Ошибка'); }
+</script>{% endblock %}
