@@ -16,13 +16,29 @@ from wtforms.validators import InputRequired, Length, EqualTo
 app = Flask(__name__)
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-change-me')
-# Use instance DB path (three slashes -> relative path; four -> absolute). We'll use absolute.
-instance_db = os.path.join(BASE_DIR, 'instance', 'app.db')
-app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{instance_db}"
+
+# ----------------- DATABASE CONFIG (minimal safe patch) -----------------
+# If DATABASE_URL is present (Render Postgres) — use it.
+# Otherwise fallback to local SQLite instance/app.db (exactly like your working file).
+database_url = os.environ.get("DATABASE_URL", "").strip()
+if database_url:
+    # compatibility: replace old scheme if necessary
+    if database_url.startswith("postgres://"):
+        database_url = database_url.replace("postgres://", "postgresql://", 1)
+    # ensure SSL for Render if not provided
+    if "sslmode" not in database_url:
+        database_url += ("&" if "?" in database_url else "?") + "sslmode=require"
+    app.config['SQLALCHEMY_DATABASE_URI'] = database_url
+else:
+    instance_db = os.path.join(BASE_DIR, 'instance', 'app.db')
+    app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{instance_db}"
+# -----------------------------------------------------------------------
+
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-# Ensure instance folder exists
-os.makedirs(os.path.join(BASE_DIR, 'instance'), exist_ok=True)
+# Ensure instance folder exists when using SQLite locally
+if not os.environ.get("DATABASE_URL"):
+    os.makedirs(os.path.join(BASE_DIR, 'instance'), exist_ok=True)
 
 db = SQLAlchemy(app)
 login_manager = LoginManager(app)
@@ -93,7 +109,10 @@ class ProfileForm(FlaskForm):
 # Utility/context
 @login_manager.user_loader
 def load_user(user_id):
-    return User.query.get(int(user_id))
+    try:
+        return User.query.get(int(user_id))
+    except Exception:
+        return None
 
 @app.context_processor
 def inject_globals():
