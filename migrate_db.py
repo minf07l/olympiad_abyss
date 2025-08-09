@@ -1,5 +1,4 @@
 import os
-import json
 from dotenv import load_dotenv
 from sqlalchemy import create_engine, MetaData, Table, select, insert
 
@@ -46,11 +45,22 @@ with eng_sqlite.connect() as conn_sqlite, eng_pg.connect() as conn_pg:
         table_sqlite = Table(table_name, meta_sqlite, autoload_with=eng_sqlite)
         table_pg = Table(table_name, meta_pg, autoload_with=eng_pg)
 
+        # Данные из SQLite
         rows = conn_sqlite.execute(select(table_sqlite)).mappings().all()
-        if rows:
-            conn_pg.execute(insert(table_pg), rows)
-            print(f"✅ Скопировано {len(rows)} строк в {table_name}")
-        else:
+
+        if not rows:
             print(f"ℹ️ Таблица {table_name} пуста, пропускаем.")
+            continue
+
+        # Получаем уже существующие ID в PostgreSQL
+        existing_ids = {r[0] for r in conn_pg.execute(select(table_pg.c.id))}
+        # Фильтруем только новые строки
+        new_rows = [r for r in rows if r['id'] not in existing_ids]
+
+        if new_rows:
+            conn_pg.execute(insert(table_pg), new_rows)
+            print(f"✅ Скопировано {len(new_rows)} новых строк в {table_name}")
+        else:
+            print(f"ℹ️ В {table_name} нет новых данных для копирования.")
 
 print("🎉 Миграция завершена!")
