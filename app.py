@@ -1,64 +1,39 @@
-# app.py - Olimpiad Abyss (Postgres-friendly, safe endpoints)
-import os
-import json
-import datetime
+# Olimpiad Abyss - working app (safe CSRF handling for polls/chat/clicker)
+import os, json, datetime
 from dotenv import load_dotenv
+load_dotenv()
 
-from flask import (
-    Flask, render_template, redirect, url_for, flash,
-    request, session, abort, jsonify
-)
+from flask import Flask, render_template, redirect, url_for, flash, request, session, abort, jsonify
 from flask_sqlalchemy import SQLAlchemy
-from flask_login import (
-    LoginManager, UserMixin, login_user, login_required,
-    logout_user, current_user
-)
+from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_wtf import FlaskForm, CSRFProtect
 from flask_wtf.csrf import generate_csrf
 from wtforms import StringField, PasswordField, TextAreaField, SubmitField
 from wtforms.validators import InputRequired, Length, EqualTo
 
-# Load .env if present
-load_dotenv()
-
-# APP SETUP
+# App setup
 app = Flask(__name__)
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
-
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-change-me')
-
-# DATABASE CONFIGURATION: use DATABASE_URL (Postgres) if present, otherwise SQLite
-db_url = os.environ.get('DATABASE_URL', '').strip() or None
-if db_url:
-    # SQLAlchemy prefers postgresql://
-    if db_url.startswith("postgres://"):
-        db_url = db_url.replace("postgres://", "postgresql://", 1)
-    # Ensure sslmode is present for Render Postgres
-    if "sslmode" not in db_url:
-        db_url = db_url + ("&" if "?" in db_url else "?") + "sslmode=require"
-    app.config['SQLALCHEMY_DATABASE_URI'] = db_url
-else:
-    # Local SQLite fallback for development
-    instance_dir = os.path.join(BASE_DIR, 'instance')
-    os.makedirs(instance_dir, exist_ok=True)
-    sqlite_path = os.path.join(instance_dir, 'app.db')
-    app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{sqlite_path}"
-
+# Use instance DB path (three slashes -> relative path; four -> absolute). We'll use absolute.
+instance_db = os.path.join(BASE_DIR, 'instance', 'app.db')
+app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{instance_db}"
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-# Extensions
+# Ensure instance folder exists
+os.makedirs(os.path.join(BASE_DIR, 'instance'), exist_ok=True)
+
 db = SQLAlchemy(app)
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
 csrf = CSRFProtect(app)
 
-# Make some helpers available in templates
+# Make some builtins available to Jinja
 app.jinja_env.globals.update(enumerate=enumerate, len=len, range=range, str=str)
 
-# MODELS
+# Models
 class User(db.Model, UserMixin):
-    __tablename__ = 'user'
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     password_hash = db.Column(db.String(200), nullable=False)
@@ -76,7 +51,6 @@ class User(db.Model, UserMixin):
         return check_password_hash(self.password_hash, pw)
 
 class Message(db.Model):
-    __tablename__ = 'message'
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
     username = db.Column(db.String(80))
@@ -84,19 +58,17 @@ class Message(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
 
 class Poll(db.Model):
-    __tablename__ = 'poll'
     id = db.Column(db.Integer, primary_key=True)
     question = db.Column(db.String(300), nullable=False)
     options = db.Column(db.Text, nullable=False)  # JSON list
 
 class Vote(db.Model):
-    __tablename__ = 'vote'
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     poll_id = db.Column(db.Integer, db.ForeignKey('poll.id'), nullable=False)
     option_index = db.Column(db.Integer, nullable=False)
 
-# FORMS
+# Forms
 class RegisterForm(FlaskForm):
     username = StringField('Логин', validators=[InputRequired(), Length(min=3, max=80)])
     password = PasswordField('Пароль', validators=[InputRequired(), Length(min=6)])
@@ -118,13 +90,10 @@ class ProfileForm(FlaskForm):
     bio = TextAreaField('О себе', validators=[Length(max=300)])
     submit = SubmitField('Сохранить')
 
-# LOGIN MANAGER
+# Utility/context
 @login_manager.user_loader
 def load_user(user_id):
-    try:
-        return User.query.get(int(user_id))
-    except Exception:
-        return None
+    return User.query.get(int(user_id))
 
 @app.context_processor
 def inject_globals():
@@ -134,7 +103,7 @@ def inject_globals():
         'csrf_token_value': generate_csrf()
     }
 
-# INITIALIZE DB + CREATE GOD USER IF MISSING
+# Initialize DB + create god user if needed
 def init_db():
     db.create_all()
     god = User.query.filter_by(is_god=True).first()
@@ -144,14 +113,13 @@ def init_db():
         if gn and gp and not User.query.filter_by(username=gn).first():
             u = User(username=gn, is_god=True, is_admin=True)
             u.set_password(gp)
-            db.session.add(u)
-            db.session.commit()
+            db.session.add(u); db.session.commit()
             print('Created god user:', gn)
 
 with app.app_context():
     init_db()
 
-# ROUTES
+# Routes
 @app.route('/')
 def index():
     polls = Poll.query.order_by(Poll.id.desc()).limit(6).all()
@@ -205,7 +173,7 @@ def profile():
     messages = Message.query.filter_by(user_id=current_user.id).order_by(Message.created_at.desc()).limit(20).all()
     return render_template('profile.html', form=form, messages=messages)
 
-# Chat (UI + API)
+# Chat endpoints
 @app.route('/chat')
 @login_required
 def chat():
@@ -227,7 +195,7 @@ def api_chat():
         db.session.add(m); db.session.commit()
         return jsonify({'ok':True,'id':m.id})
 
-# Polls: list + create
+# Polls
 @app.route('/polls', methods=['GET','POST'])
 def polls():
     form = PollForm()
@@ -237,16 +205,15 @@ def polls():
         db.session.add(p); db.session.commit()
         flash('Опрос создан', 'success')
         return redirect(url_for('polls'))
-    polls_list = Poll.query.order_by(Poll.id.desc()).all()
-    return render_template('polls.html', form=form, polls=polls_list)
+    polls = Poll.query.order_by(Poll.id.desc()).all()
+    return render_template('polls.html', form=form, polls=polls)
 
-# Poll view + form POST voting (works for form and returns flash/redirect)
 @app.route('/poll/<int:pid>', methods=['GET','POST'])
 def poll_view(pid):
     p = Poll.query.get_or_404(pid)
     opts = json.loads(p.options)
+    # handle both form POST (traditional) and JSON POST (AJAX)
     if request.method == 'POST':
-        # support both JSON and form
         if request.is_json:
             data = request.get_json() or {}
             try:
@@ -274,28 +241,8 @@ def poll_view(pid):
         if 0<=v.option_index<len(counts): counts[v.option_index]+=1
     return render_template('poll_view.html', poll=p, options=opts, counts=counts, votes=len(votes))
 
-# Optional AJAX vote endpoint used by some templates/clients (returns JSON)
-@app.route('/poll/<int:pid>/vote', methods=['POST'])
-@login_required
-def poll_vote(pid):
-    p = Poll.query.get_or_404(pid)
-    opts = json.loads(p.options)
-    data = request.get_json() or {}
-    try:
-        idx = int(data.get('option', -1))
-    except:
-        idx = -1
-    if idx<0 or idx>=len(opts):
-        return jsonify({'error':'invalid option'}), 400
-    if Vote.query.filter_by(user_id=current_user.id, poll_id=pid).first():
-        return jsonify({'error':'already voted'}), 400
-    v = Vote(user_id=current_user.id, poll_id=pid, option_index=idx)
-    db.session.add(v); db.session.commit()
-    return jsonify({'ok':True})
-
 # Clicker
 @app.route('/click', methods=['GET','POST'])
-@app.route('/clicker', methods=['GET','POST'])
 @login_required
 def clicker():
     if request.method == 'POST':
@@ -306,26 +253,30 @@ def clicker():
         return jsonify({'points': current_user.points})
     return render_template('click.html')
 
-# ADMIN / GOD endpoints
+# Admin routes
 @app.route('/admin')
 @login_required
 def admin_panel():
-    ok = (session.get('admin_mode') and (current_user.is_admin or current_user.is_god)) or current_user.is_god
-    if not ok: abort(403)
+    ok_admin = (session.get('admin_mode') and (current_user.is_admin or current_user.is_god)) or current_user.is_god
+    if not ok_admin:
+        abort(403)
     users = User.query.order_by(User.joined_at.desc()).all()
     return render_template('admin.html', users=users)
 
-# alias for templates that might call admin_dashboard/admin_panel/admin
-@app.route('/admin/dashboard')
+@app.route('/toggle_admin')
 @login_required
-def admin_dashboard():
-    return admin_panel()
+def toggle_admin():
+    if not (current_user.is_admin or current_user.is_god):
+        flash('У вас нет прав администратора','danger'); return redirect(url_for('index'))
+    session['admin_mode'] = not session.get('admin_mode', False)
+    flash('Режим администратора ' + ('включён' if session['admin_mode'] else 'выключен'),'info')
+    return redirect(url_for('index'))
 
 @app.route('/admin/delete/<int:uid>', methods=['POST'])
 @login_required
 def admin_delete(uid):
-    ok = (session.get('admin_mode') and (current_user.is_admin or current_user.is_god)) or current_user.is_god
-    if not ok: abort(403)
+    ok_admin = (session.get('admin_mode') and (current_user.is_admin or current_user.is_god)) or current_user.is_god
+    if not ok_admin: abort(403)
     target = User.query.get_or_404(uid)
     if current_user.is_god:
         if target.id == current_user.id:
@@ -360,28 +311,6 @@ def admin_demote(uid):
     u.is_admin = False; db.session.add(u); db.session.commit()
     return jsonify({'ok':True})
 
-@app.route('/toggle_admin')
-@login_required
-def toggle_admin():
-    if not (current_user.is_admin or current_user.is_god):
-        flash('Нет прав','danger'); return redirect(url_for('index'))
-    session['admin_mode'] = not session.get('admin_mode', False)
-    flash('Режим админа ' + ('вкл' if session['admin_mode'] else 'выкл'),'info')
-    return redirect(url_for('index'))
-
-# Aliases for god-panel endpoints templates may reference
-@app.route('/god')
-@login_required
-def god_panel():
-    # god-specific page can point to admin panel for now
-    return admin_panel()
-
-@app.route('/god/dashboard')
-@login_required
-def god_dashboard():
-    return admin_panel()
-
-# Users listing
 @app.route('/users')
 def users_list():
     q = request.args.get('q',''); role = request.args.get('role','all')
@@ -392,11 +321,5 @@ def users_list():
     users = qs.order_by(User.joined_at.desc()).all()
     return render_template('users.html', users=users, q=q, role=role)
 
-# keep health check or simple endpoint
-@app.route('/healthz')
-def healthz():
-    return jsonify({'ok': True, 'db': app.config.get('SQLALCHEMY_DATABASE_URI', '')})
-
-# last line to run
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+    app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT',5000)))
