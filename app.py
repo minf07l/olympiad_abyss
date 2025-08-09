@@ -21,18 +21,15 @@ BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-change-me')
 
-# Определяем базу данных
+# Настройка БД — минимальная правка
 database_url = os.environ.get("DATABASE_URL")
 if database_url:
-    # Fix для старого формата postgres://
     if database_url.startswith("postgres://"):
         database_url = database_url.replace("postgres://", "postgresql://", 1)
-    # Обязательно для Render — SSL
     if "sslmode" not in database_url:
         database_url += "?sslmode=require"
     app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 else:
-    # Локальная SQLite (dev-режим)
     instance_db = os.path.join(BASE_DIR, 'instance', 'app.db')
     os.makedirs(os.path.join(BASE_DIR, 'instance'), exist_ok=True)
     app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{instance_db}"
@@ -152,7 +149,7 @@ def index():
     top_clickers = User.query.order_by(User.points.desc()).limit(6).all()
     return render_template('index.html', polls=polls, top_clickers=top_clickers)
 
-# Остальные маршруты берём из твоей рабочей версии
+# Остальные твои маршруты остаются без изменений
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
