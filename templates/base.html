@@ -1,76 +1,35 @@
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Olimp Base{% endblock %}</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
-</head>
-<body>
-    {% set is_auth = current_user.is_authenticated if current_user is defined else False %}
-    {% set is_admin = (is_auth and current_user.is_admin) %}
-    {% set is_god = (is_auth and current_user.is_god) %}
-
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-        <div class="container-fluid">
-            <a class="navbar-brand" href="{{ url_for('index') }}">Olimp Base</a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
-                aria-controls="navbarNav" aria-expanded="false" aria-label="Переключить навигацию">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav ms-auto">
-                    {% if is_auth %}
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('profile') }}">Профиль</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('clicker') }}">Кликер</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('polls') }}">Опросы</a>
-                        </li>
-                        {% if is_admin %}
-                            <li class="nav-item">
-                                <a class="nav-link" href="{{ url_for('admin_panel') }}">Админ</a>
-                            </li>
-                        {% endif %}
-                        {% if is_god %}
-                            <li class="nav-item">
-                                <a class="nav-link" href="{{ url_for('god_panel') }}">Бог</a>
-                            </li>
-                        {% endif %}
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('logout') }}">Выйти</a>
-                        </li>
-                    {% else %}
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('login') }}">Вход</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('register') }}">Регистрация</a>
-                        </li>
-                    {% endif %}
-                </ul>
-            </div>
-        </div>
-    </nav>
-
-    <div class="container mt-4">
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                {% for category, message in messages %}
-                    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-                        {{ message }}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Закрыть"></button>
-                    </div>
-                {% endfor %}
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Olimpiad Abyss</title><link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<meta name="csrf-token" content="{{ csrf_token_value }}"></head><body class="bg-light">
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-3">
+  <div class="container-fluid">
+    <a class="navbar-brand" href="/">Olimpiad Abyss</a>
+    <div class="collapse navbar-collapse">
+      <ul class="navbar-nav ms-auto">
+        {% if user.is_authenticated %}
+          <li class="nav-item"><a class="nav-link" href="{{ url_for('profile') }}">{{ user.avatar }} {{ user.username }}</a></li>
+          <li class="nav-item"><a class="nav-link" href="{{ url_for('clicker') }}">Кликер ({{ user.points }})</a></li>
+          <li class="nav-item"><a class="nav-link" href="{{ url_for('chat') }}">Чат</a></li>
+          <li class="nav-item"><a class="nav-link" href="{{ url_for('polls') }}">Опросы</a></li>
+          {% if user.is_admin or user.is_god %}
+            <li class="nav-item"><a class="nav-link" href="{{ url_for('toggle_admin') }}">{{ 'Exit admin' if admin_mode else 'Enter admin' }}</a></li>
+            {% if admin_mode or user.is_god %}
+              <li class="nav-item"><a class="nav-link" href="{{ url_for('admin_panel') }}">Admin</a></li>
             {% endif %}
-        {% endwith %}
-        {% block content %}{% endblock %}
+          {% endif %}
+          <li class="nav-item"><a class="nav-link" href="{{ url_for('logout') }}">Выйти</a></li>
+        {% else %}
+          <li class="nav-item"><a class="nav-link" href="{{ url_for('login') }}">Войти</a></li>
+          <li class="nav-item"><a class="nav-link" href="{{ url_for('register') }}">Регистрация</a></li>
+        {% endif %}
+      </ul>
     </div>
-
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-</body>
-</html>
+  </div>
+</nav>
+<div class="container">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}{% for cat,msg in messages %}<div class="alert alert-{{cat}}">{{msg}}</div>{% endfor %}{% endif %}
+  {% endwith %}
+  {% block content %}{% endblock %}
+</div>
+</body></html>
