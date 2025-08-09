@@ -1,12 +1,32 @@
-<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Olimpiad Abyss</title><link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-<meta name="csrf-token" content="{{ csrf_token_value }}"></head><body class="bg-light">
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Olimpiad Abyss</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <meta name="csrf-token" content="{{ csrf_token_value }}">
+</head>
+<body class="bg-light">
+
+{# защита: если переменные не переданы, то не упадём #}
+{% set user = user if user is defined else None %}
+{% set admin_mode = admin_mode if admin_mode is defined else False %}
+
 <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-3">
   <div class="container-fluid">
     <a class="navbar-brand" href="/">Olimpiad Abyss</a>
-    <div class="collapse navbar-collapse">
+
+    <!-- Тoggler (гамбургер) для мобильных -->
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNavbar"
+            aria-controls="mainNavbar" aria-expanded="false" aria-label="Toggle navigation">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+
+    <!-- Здесь теперь id совпадает с data-bs-target -->
+    <div class="collapse navbar-collapse" id="mainNavbar">
       <ul class="navbar-nav ms-auto">
-        {% if user.is_authenticated %}
+        {% if user and user.is_authenticated %}
           <li class="nav-item"><a class="nav-link" href="{{ url_for('profile') }}">{{ user.avatar }} {{ user.username }}</a></li>
           <li class="nav-item"><a class="nav-link" href="{{ url_for('clicker') }}">Кликер ({{ user.points }})</a></li>
           <li class="nav-item"><a class="nav-link" href="{{ url_for('chat') }}">Чат</a></li>
@@ -26,10 +46,15 @@
     </div>
   </div>
 </nav>
+
 <div class="container">
   {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}{% for cat,msg in messages %}<div class="alert alert-{{cat}}">{{msg}}</div>{% endfor %}{% endif %}
   {% endwith %}
   {% block content %}{% endblock %}
 </div>
-</body></html>
+
+<!-- Bootstrap JS (bundle включает Popper и всё нужное для collapse) -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
