@@ -28,6 +28,9 @@ if db_url:
     # Для совместимости с SQLAlchemy (postgres:// → postgresql://)
     if db_url.startswith("postgres://"):
         db_url = db_url.replace("postgres://", "postgresql://", 1)
+    # Для Render — обязательно SSL
+    if "sslmode" not in db_url:
+        db_url += "?sslmode=require"
     app.config['SQLALCHEMY_DATABASE_URI'] = db_url
 else:
     # Локальная SQLite (для тестов)
@@ -151,9 +154,7 @@ def index():
     top_clickers = User.query.order_by(User.points.desc()).limit(6).all()
     return render_template('index.html', polls=polls, top_clickers=top_clickers)
 
-# Остальные маршруты из твоего текущего кода
-# (регистрация, логин, чат, опросы, кликер, админка и т.д.)
-# переносятся сюда без изменений
+# Остальные маршруты — без изменений, копируем из твоей текущей версии
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
