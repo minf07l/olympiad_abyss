@@ -16,30 +16,13 @@ from wtforms.validators import InputRequired, Length, EqualTo
 app = Flask(__name__)
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-change-me')
-
-# ---------- МИНИМАЛЬНАЯ ПРАВКА: выбор БД ----------
-# Если задана DATABASE_URL (Render Postgres) — используем её.
-# Иначе — fallback на локальную SQLite (instance/app.db), как раньше.
-database_url = os.environ.get("DATABASE_URL", "").strip()
-if database_url:
-    # поддержка старого формата
-    if database_url.startswith("postgres://"):
-        database_url = database_url.replace("postgres://", "postgresql://", 1)
-    # добавить sslmode=require если не указан (нужно для Render)
-    if "sslmode" not in database_url:
-        database_url += ("&" if "?" in database_url else "?") + "sslmode=require"
-    app.config['SQLALCHEMY_DATABASE_URI'] = database_url
-else:
-    # Use instance DB path (three slashes -> relative path; four -> absolute). We'll use absolute.
-    instance_db = os.path.join(BASE_DIR, 'instance', 'app.db')
-    app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{instance_db}"
-# -------------------------------------------------
-
+# Use instance DB path (three slashes -> relative path; four -> absolute). We'll use absolute.
+instance_db = os.path.join(BASE_DIR, 'instance', 'app.db')
+app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{instance_db}"
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-# Ensure instance folder exists (useful locally for sqlite)
-if not os.environ.get("DATABASE_URL"):
-    os.makedirs(os.path.join(BASE_DIR, 'instance'), exist_ok=True)
+# Ensure instance folder exists
+os.makedirs(os.path.join(BASE_DIR, 'instance'), exist_ok=True)
 
 db = SQLAlchemy(app)
 login_manager = LoginManager(app)
@@ -136,7 +119,7 @@ def init_db():
 with app.app_context():
     init_db()
 
-# Routes (оставлены без изменений — их копируй из твоего рабочего файла)
+# Routes
 @app.route('/')
 def index():
     polls = Poll.query.order_by(Poll.id.desc()).limit(6).all()
